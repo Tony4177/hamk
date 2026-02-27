@@ -1,18 +1,52 @@
 import streamlit as st
-import os
 from datetime import datetime
 from database import medicines_collection
 from auth import register_user, login_user
 from reminder import check_reminders
-from ai_assistant import get_ai_response
+from get_ai import get_ai_response   # make sure filename matches
 
+# ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="Medicine Reminder", layout="centered")
 
+# ---------------- LIME GREEN UI ----------------
+st.markdown("""
+<style>
+body {
+    background-color: white;
+}
+.stApp {
+    background-color: white;
+}
+.stButton>button {
+    background-color: #32CD32;
+    color: white;
+    border-radius: 8px;
+    height: 3em;
+    width: 100%;
+    font-weight: bold;
+}
+.stTextInput>div>div>input {
+    border-radius: 8px;
+}
+.stTimeInput>div>div>input {
+    border-radius: 8px;
+}
+section[data-testid="stSidebar"] {
+    background-color: #f2fff2;
+}
+h1, h2, h3 {
+    color: #228B22;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ---------------- SESSION ----------------
 if "user" not in st.session_state:
     st.session_state.user = None
 
-st.title("💊 Medicine Reminder App")
+st.title("💊 Medicine Reminder System")
 
+# ---------------- SIDEBAR MENU ----------------
 menu = ["Login", "Register"]
 choice = st.sidebar.selectbox("Menu", menu)
 
@@ -39,42 +73,74 @@ elif choice == "Login":
         if user:
             st.session_state.user = user
             st.success("Logged in successfully")
+            st.rerun()
         else:
             st.error("Invalid credentials")
 
 # ---------------- DASHBOARD ----------------
 if st.session_state.user:
+
     st.sidebar.success("Logged in as " + st.session_state.user["email"])
 
-    st.header("Add Medicine")
+    if st.sidebar.button("Logout"):
+        st.session_state.user = None
+        st.rerun()
+
+    # ---------- ADD MEDICINE ----------
+    st.header("➕ Add Medicine")
+
     med_name = st.text_input("Medicine Name")
     med_time = st.time_input("Select Time")
 
     if st.button("Add Medicine"):
-        medicines_collection.insert_one({
-            "user_id": st.session_state.user["_id"],
-            "medicine_name": med_name,
-            "time": med_time.strftime("%H:%M")
-        })
-        st.success("Medicine Added!")
+        if med_name:
+            medicines_collection.insert_one({
+                "user_id": st.session_state.user["_id"],
+                "medicine_name": med_name,
+                "time": med_time.strftime("%H:%M")
+            })
+            st.success("Medicine Added!")
+            st.rerun()
+        else:
+            st.warning("Please enter medicine name")
 
-    st.header("Your Medicines")
-    user_meds = medicines_collection.find({"user_id": st.session_state.user["_id"]})
-    
-    for med in user_meds:
-        st.write(f"{med['medicine_name']} - {med['time']}")
-        if st.button(f"Delete {med['_id']}"):
-            medicines_collection.delete_one({"_id": med["_id"]})
-            st.experimental_rerun()
+    # ---------- SHOW MEDICINES ----------
+    st.header("📋 Your Medicines")
 
-    st.header("Reminder Check")
+    user_meds = list(medicines_collection.find({
+        "user_id": st.session_state.user["_id"]
+    }))
+
+    if user_meds:
+        for med in user_meds:
+            col1, col2 = st.columns([3,1])
+            with col1:
+                st.write(f"💊 {med['medicine_name']}  |  ⏰ {med['time']}")
+            with col2:
+                if st.button("❌ Delete", key=str(med["_id"])):
+                    medicines_collection.delete_one({"_id": med["_id"]})
+                    st.rerun()
+    else:
+        st.info("No medicines added yet.")
+
+    # ---------- REMINDER CHECK ----------
+    st.header("⏰ Reminder Check")
+
     due = check_reminders(st.session_state.user["_id"])
     if due:
         for med in due:
-            st.warning(f"⏰ Time to take {med}!")
+            st.warning(f"Time to take {med}!")
+    else:
+        st.success("No medicines due right now.")
 
-    st.header("AI Assistant 🤖")
-    question = st.text_input("Ask something about your medicine")
-    if question:
-        response = get_ai_response(question)
-        st.info(response)
+    # ---------- AI ASSISTANT ----------
+    st.header("🤖 Medicine Assistant")
+
+    question = st.text_input("Ask about dosage, missed dose, safety etc")
+
+    if st.button("Ask AI"):
+        if question:
+            response = get_ai_response(question)
+            st.info(response)
+        else:
+            st.warning("Please enter a question")
