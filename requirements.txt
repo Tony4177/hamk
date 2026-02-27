@@ -3,3 +3,4 @@ pymongo
 bcrypt
 python-dotenv
 openai
+requests
