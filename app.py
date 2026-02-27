@@ -3,23 +3,34 @@ from datetime import datetime
 from database import medicines_collection
 from auth import register_user, login_user
 from reminder import check_reminders
-from get_ai import get_ai_response   # Make sure filename matches
+
+# ---------------- SIMPLE BUILT-IN AI ----------------
+def get_ai_response(question):
+    q = question.lower()
+
+    if "miss dose" in q:
+        return "Take it as soon as you remember. Skip if near next dose."
+
+    elif "side effect" in q:
+        return "Side effects depend on the medicine. Consult a doctor."
+
+    elif "safe" in q:
+        return "Medicine safety depends on dosage and condition."
+
+    elif "when" in q:
+        return "Check your scheduled medicines in dashboard."
+
+    else:
+        return "Consult a healthcare professional for serious concerns."
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="Medicine Reminder", layout="centered")
 
-# ---------------- AUTO REFRESH (Reminder improvement) ----------------
-st.experimental_set_query_params(refresh=datetime.now())
-
 # ---------------- LIME GREEN UI ----------------
 st.markdown("""
 <style>
-body {
-    background-color: white;
-}
-.stApp {
-    background-color: white;
-}
+body { background-color: white; }
+.stApp { background-color: white; }
 .stButton>button {
     background-color: #32CD32;
     color: white;
@@ -32,18 +43,10 @@ body {
 .stButton>button:hover {
     background-color: #28a428;
 }
-.stTextInput>div>div>input {
-    border-radius: 8px;
-}
-.stTimeInput>div>div>input {
-    border-radius: 8px;
-}
 section[data-testid="stSidebar"] {
     background-color: #f2fff2;
 }
-h1, h2, h3 {
-    color: #228B22;
-}
+h1, h2, h3 { color: #228B22; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -53,7 +56,6 @@ if "user" not in st.session_state:
 
 st.title("💊 Medicine Reminder System")
 
-# ---------------- SIDEBAR ----------------
 menu = ["Login", "Register"]
 choice = st.sidebar.selectbox("Menu", menu)
 
@@ -93,9 +95,7 @@ if st.session_state.user:
         st.session_state.user = None
         st.rerun()
 
-    # ---------- ADD MEDICINE ----------
     st.header("➕ Add Medicine")
-
     med_name = st.text_input("Medicine Name")
     med_time = st.time_input("Select Time")
 
@@ -111,7 +111,6 @@ if st.session_state.user:
         else:
             st.warning("Enter medicine name")
 
-    # ---------- SHOW MEDICINES ----------
     st.header("📋 Your Medicines")
 
     user_meds = list(medicines_collection.find({
@@ -130,9 +129,7 @@ if st.session_state.user:
     else:
         st.info("No medicines added yet.")
 
-    # ---------- REMINDER CHECK ----------
     st.header("⏰ Reminder Status")
-
     due = check_reminders(st.session_state.user["_id"])
 
     if due:
@@ -141,9 +138,7 @@ if st.session_state.user:
     else:
         st.success("No medicines due right now.")
 
-    # ---------- AI ASSISTANT ----------
     st.header("🤖 Medicine Assistant")
-
     question = st.text_input("Ask about dosage, missed dose, safety etc")
 
     if st.button("Ask AI"):
