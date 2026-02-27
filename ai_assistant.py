@@ -1,18 +1,17 @@
+import requests
 import os
-from openai import OpenAI
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+HF_TOKEN = os.getenv("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")
 
 def get_ai_response(question):
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a helpful medical reminder assistant. Do not give dangerous medical advice."},
-                {"role": "user", "content": question}
-            ],
-            max_tokens=200
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return "AI error: " + str(e)
+    API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-base"
+    headers = {"Authorization": f"Bearer {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}"}
+    
+    payload = {"inputs": question}
+
+    response = requests.post(API_URL, headers=headers, json=payload)
+    
+    if response.status_code == 200:
+        return response.json()[0]["generated_text"]
+    else:
+        return "AI temporarily unavailable."
