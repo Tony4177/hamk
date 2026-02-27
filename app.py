@@ -3,10 +3,13 @@ from datetime import datetime
 from database import medicines_collection
 from auth import register_user, login_user
 from reminder import check_reminders
-from get_ai import get_ai_response   # make sure filename matches
+from get_ai import get_ai_response   # Make sure filename matches
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="Medicine Reminder", layout="centered")
+
+# ---------------- AUTO REFRESH (Reminder improvement) ----------------
+st.experimental_set_query_params(refresh=datetime.now())
 
 # ---------------- LIME GREEN UI ----------------
 st.markdown("""
@@ -20,10 +23,14 @@ body {
 .stButton>button {
     background-color: #32CD32;
     color: white;
-    border-radius: 8px;
+    border-radius: 10px;
     height: 3em;
     width: 100%;
     font-weight: bold;
+    border: none;
+}
+.stButton>button:hover {
+    background-color: #28a428;
 }
 .stTextInput>div>div>input {
     border-radius: 8px;
@@ -46,7 +53,7 @@ if "user" not in st.session_state:
 
 st.title("💊 Medicine Reminder System")
 
-# ---------------- SIDEBAR MENU ----------------
+# ---------------- SIDEBAR ----------------
 menu = ["Login", "Register"]
 choice = st.sidebar.selectbox("Menu", menu)
 
@@ -93,7 +100,7 @@ if st.session_state.user:
     med_time = st.time_input("Select Time")
 
     if st.button("Add Medicine"):
-        if med_name:
+        if med_name.strip() != "":
             medicines_collection.insert_one({
                 "user_id": st.session_state.user["_id"],
                 "medicine_name": med_name,
@@ -102,7 +109,7 @@ if st.session_state.user:
             st.success("Medicine Added!")
             st.rerun()
         else:
-            st.warning("Please enter medicine name")
+            st.warning("Enter medicine name")
 
     # ---------- SHOW MEDICINES ----------
     st.header("📋 Your Medicines")
@@ -113,20 +120,21 @@ if st.session_state.user:
 
     if user_meds:
         for med in user_meds:
-            col1, col2 = st.columns([3,1])
+            col1, col2 = st.columns([4,1])
             with col1:
                 st.write(f"💊 {med['medicine_name']}  |  ⏰ {med['time']}")
             with col2:
-                if st.button("❌ Delete", key=str(med["_id"])):
+                if st.button("❌", key=str(med["_id"])):
                     medicines_collection.delete_one({"_id": med["_id"]})
                     st.rerun()
     else:
         st.info("No medicines added yet.")
 
     # ---------- REMINDER CHECK ----------
-    st.header("⏰ Reminder Check")
+    st.header("⏰ Reminder Status")
 
     due = check_reminders(st.session_state.user["_id"])
+
     if due:
         for med in due:
             st.warning(f"Time to take {med}!")
@@ -139,7 +147,7 @@ if st.session_state.user:
     question = st.text_input("Ask about dosage, missed dose, safety etc")
 
     if st.button("Ask AI"):
-        if question:
+        if question.strip() != "":
             response = get_ai_response(question)
             st.info(response)
         else:
